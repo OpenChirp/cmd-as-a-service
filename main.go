@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/openchirp/framework/utils"
+
 	"github.com/openchirp/framework"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -23,6 +25,8 @@ const (
 	// "Running" each time it receives a device update event
 	runningStatus = true
 )
+
+var cmd *Command
 
 // Device holds any data you want to keep around for a specific
 // device that has linked your service.
@@ -46,7 +50,7 @@ func (d *Device) ProcessLink(ctrl *framework.DeviceControl) string {
 	logitem.Debug("Linking with config:", ctrl.Config())
 
 	// Subscribe to subtopic "rawrx"
-	ctrl.Subscribe("rawrx", rawRxKey)
+	ctrl.Subscribe("+", nil)
 
 	logitem.Debug("Finished Linking")
 
@@ -73,8 +77,11 @@ func (d *Device) ProcessConfigChange(ctrl *framework.DeviceControl, cchanges, co
 // this device.
 func (d *Device) ProcessMessage(ctrl *framework.DeviceControl, msg framework.Message) {
 	logitem := log.WithField("deviceid", ctrl.Id())
-	logitem.Debugf("Processing Message: %v: [ % #x ]", msg.Key(), msg.Payload())
-	logitem.Errorln("Received unassociated message")
+	logitem.Debugf("Processing Message: [ % #x ]", msg.Payload())
+
+	if err := cmd.Recv(ctrl.Id(), msg.Topic(), msg.Payload(), ctrl.Config()); err != nil {
+		logitem.Fatalf("Command returned err: %v", err)
+	}
 }
 
 // run is the main function that gets called once form main()
@@ -96,7 +103,22 @@ func run(ctx *cli.Context) error {
 		log.Error("Failed to StartServiceClient: ", err)
 		return cli.NewExitError(nil, 1)
 	}
-	defer c.StopClient()
+
+	/* Parse given command arguments as CSV */
+	cmdArgs, err := utils.ParseCSVConfig(ctx.String("cmd-args"))
+	if err != nil {
+		log.Fatalf("Failed to parse CMD args: %v", err)
+		return cli.NewExitError(nil, 1)
+	}
+
+	cmd = NewCommand(ctx.String("cmd-path"), cmdArgs)
+
+	// /* Setup and start the command */
+	if err := cmd.Start(); err != nil {
+		log.Errorf("Failed to start cmd: %v", err)
+		return cli.NewExitError(nil, 1)
+	}
+
 	log.Info("Started service")
 
 	/* Post service's global status */
@@ -127,6 +149,15 @@ func run(ctx *cli.Context) error {
 		log.Error("Failed to publish service status: ", err)
 	}
 	log.Info("Published service status")
+
+	/* Stop framework */
+	c.StopClient()
+
+	/* End cmd */
+	if err := cmd.Stop(); err != nil {
+		log.Errorf("Failed to end process: %v", err)
+		return cli.NewExitError(nil, 1)
+	}
 
 	return nil
 }
@@ -175,7 +206,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:   "cmd-args",
-			Usage:  "The args will be passed to the command being executed",
+			Usage:  "The args will be passed to the command being executed. Parsed as a CSV.",
 			EnvVar: "CMD_ARGS",
 		},
 	}
