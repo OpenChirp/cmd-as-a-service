@@ -77,7 +77,8 @@ func (d *Device) ProcessConfigChange(ctrl *framework.DeviceControl, cchanges, co
 // this device.
 func (d *Device) ProcessMessage(ctrl *framework.DeviceControl, msg framework.Message) {
 	logitem := log.WithField("deviceid", ctrl.Id())
-	logitem.Debugf("Processing Message: [ % #x ]", msg.Payload())
+	// logitem.Debugf("Processing Message: [ % #x ]", msg.Payload())
+	logitem.WithField("topic", msg.Topic()).Debugf("Processing Message: %s", string(msg.Payload()))
 
 	if err := cmd.Recv(ctrl.Id(), msg.Topic(), msg.Payload(), ctrl.Config()); err != nil {
 		logitem.Fatalf("Command returned err: %v", err)
