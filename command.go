@@ -12,7 +12,7 @@ import (
 type RecvMessage struct {
 	DeviceID string            `json:"deviceid"`
 	Topic    string            `json:"topic"`
-	Payload  []byte            `json:"payload"`
+	Payload  string            `json:"payload"` // could be []byte later
 	Config   map[string]string `json:"config"`
 }
 
@@ -57,7 +57,7 @@ func (c *Command) Recv(devid, topic string, payload []byte, config map[string]st
 	var rm = RecvMessage{
 		DeviceID: devid,
 		Topic:    topic,
-		Payload:  payload,
+		Payload:  string(payload),
 		Config:   config,
 	}
 	// if c.Exited() {
