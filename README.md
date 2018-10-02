@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/OpenChirp/math-cmd-as-a-service.svg?branch=master)](https://travis-ci.org/OpenChirp/math-cmd-as-a-service)
+
 # OpenChirp CMD-as-a Service
 
 ## Overview
